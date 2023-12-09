@@ -14,20 +14,21 @@ def create_wallet():
     address = public_key_to_address(public_key)
 
     return {
-        'wallet': {
-            'private_key': private_key.to_string().hex(),
-            'public_key': public_key.to_string().hex(),
-            'address': address
-        }
+        'private_key': private_key.to_string().hex(),
+        'public_key': public_key.to_string().hex(),
+        'address': address
     }
 
 def create_genesis():
-    pass
+    return {
+
+    }
     
 
 class Node():
     def __init__(self, name):
         self.name = name
+
         # check if the node already exists
         node_config_dir_path = os.path.join('local_configs', name)
         node_config_file_path = os.path.join(node_config_dir_path, 'config.toml')
@@ -35,13 +36,18 @@ class Node():
             os.makedirs(node_config_dir_path)
             # create configuration: wallet (private-public key pair), ledger, etc.
             wallet_dict = create_wallet()
-            with open(node_config_file_path, 'w+') as f:
-                toml.dump(wallet_dict, f)
+            ledger_dict = create_genesis()
 
+            with open(node_config_file_path, 'w+') as f:
+                toml.dump({
+                    'wallet': wallet_dict,
+                    'ledger': ledger_dict
+                }, f)
 
         # read configuration
         config = toml.load(node_config_file_path)
         self.wallet = config['wallet']
+        self.ledger = config['ledger']
 
 def signal_handler(signum, frame):
     # do something
