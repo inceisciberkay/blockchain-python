@@ -7,10 +7,15 @@ from src.wallet import Wallet
 class WalletWindow(QMainWindow):
     def __init__(self, node_name):
         super(WalletWindow, self).__init__()
-        self.setMinimumSize(600, 200)
+        self.setMinimumSize(700, 200)
         self.setWindowTitle(f"Wallet Client of {node_name}")
 
-        self.wallet = Wallet(node_name)
+        try:
+            self.wallet = Wallet(node_name)
+        except Exception:
+            print("Node does not exist")    # no local config file can be found for node
+            exit(1)
+
         self.recipient_address = None
         self.amount = None
 
