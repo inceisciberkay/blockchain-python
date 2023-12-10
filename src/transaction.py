@@ -6,10 +6,18 @@ class Transaction:
 
     def to_dict(self):
         return {
-            'sender': self.sender_addr,
-            'receiver': self.receiver_addr,
+            'sender_addr': self.sender_addr,
+            'receiver_addr': self.receiver_addr,
             'amount': self.amount
         }
+    
+    @classmethod
+    def create_from_dict(cls, transaction_dict: dict):
+        return Transaction(
+            sender_addr=transaction_dict['sender_addr'],
+            receiver_addr=transaction_dict['receiver_addr'],
+            amount=transaction_dict['amount']
+        )
     
     def to_str(self):
         return f"{self.sender_addr}{self.receiver_addr}{self.amount}"

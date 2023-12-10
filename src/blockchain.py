@@ -1,3 +1,5 @@
+from block import Block
+
 class Blockchain():
     difficulty = 5
 
@@ -11,3 +13,12 @@ class Blockchain():
             blocks.append(block.to_dict())
             
         return blocks
+
+    @classmethod
+    def create_from_list_of_dicts(cls, list_of_dicts):
+        blocks = []
+        for block_dict in list_of_dicts:
+            block = Block.create_from_dict(block_dict)
+            blocks.append(block)
+
+        return Blockchain(blocks)

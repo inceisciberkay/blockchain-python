@@ -1,7 +1,8 @@
 from hashlib import sha256
+from transaction import Transaction
 
 class Block:
-    def __init__(self, index, previous_hash, nonce, transactions):
+    def __init__(self, previous_hash, index, nonce, transactions):
         self.previous_hash = previous_hash
         self.index = index
         self.nonce = nonce
@@ -20,6 +21,21 @@ class Block:
             'nonce': self.nonce,
             'transactions': transactions
         }
+    
+    @classmethod
+    def create_from_dict(cls, block_dict: dict):
+        # create list of transactions from a list of dictionaries
+        transactions = []
+        for transaction_dict in block_dict['transactions']:
+            transaction = Transaction.create_from_dict(transaction_dict)
+            transactions.append(transaction)
+
+        return Block(
+            previous_hash=block_dict['previous_hash'],
+            index=block_dict['index'],
+            nonce=block_dict['nonce'],
+            transactions=transactions
+        )
 
     def hash(self):
         transactions_str = ""

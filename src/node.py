@@ -55,18 +55,23 @@ class Node():
             with open(self.node_config_file_path, 'w+') as f:
                 toml.dump({
                     'wallet': wallet_dict,
-                    'block': ledger_dict,   # it is actually ledger, named as 'block' for readability of config file
+                    'ledger': ledger_dict,
                 }, f)
 
-        # read configuration
+        # read configuration into object
         config = toml.load(self.node_config_file_path)
-        self.wallet = config['wallet']
-        self.ledger = config['ledger']
+        self.ledger = Blockchain.create_from_list_of_dicts(config['ledger'])
     
     def run(self):
+
         while True: 
-            with open(self.node_config_file_path, 'a'):
-                time.sleep(1)
+            time.sleep(1)
+
+    def listen_neighbors(self):
+        pass
+
+    def listen_tracker(self):
+        pass
 
 def signal_handler(signum, frame):
     # do something
