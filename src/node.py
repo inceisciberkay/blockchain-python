@@ -5,6 +5,9 @@ import signal
 import os
 import toml
 from key_generator import *
+from block import Block
+from transaction import Transaction
+from blockchain import Blockchain
 
 def create_wallet():
     # Generate key pair
@@ -19,11 +22,22 @@ def create_wallet():
         'address': address
     }
 
-def create_genesis():
-    return {
-
-    }
-    
+def create_initial_ledger():
+    generation_transaction = Transaction(
+        sender_addr="mine",
+        receiver_addr="1MMietQo1TdZ5pwWTE16WghZpn5uuKNGdV", # satoshi's (node1) account
+        amount=10
+    )
+    genesis = Block(
+        index=0,
+        previous_hash="000000000000000000000000000000000000000000000000000000000000000000000000", # base16
+        nonce=0,
+        transactions=[generation_transaction]
+    )
+    ledger = Blockchain(
+        blocks=[genesis]
+    )
+    return ledger.to_list_of_dicts()
 
 class Node():
     def __init__(self, name):
@@ -36,18 +50,18 @@ class Node():
             os.makedirs(node_config_dir_path)
             # create configuration: wallet (private-public key pair), ledger, etc.
             wallet_dict = create_wallet()
-            ledger_dict = create_genesis()
+            ledger_dict = create_initial_ledger()
 
             with open(self.node_config_file_path, 'w+') as f:
                 toml.dump({
                     'wallet': wallet_dict,
-                    'ledger': ledger_dict
+                    'block': ledger_dict,   # it is actually ledger, named as 'block' for readability of config file
                 }, f)
 
         # read configuration
         config = toml.load(self.node_config_file_path)
         self.wallet = config['wallet']
-        # self.ledger = config['ledger']
+        self.ledger = config['ledger']
     
     def run(self):
         while True: 
