@@ -1,3 +1,5 @@
+#!/bin/python3
+
 import argparse
 import psutil
 from hashlib import sha1

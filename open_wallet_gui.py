@@ -1,3 +1,5 @@
+#!/bin/python3
+
 import sys
 import argparse
 from PySide6.QtWidgets import QApplication, QMainWindow, QLineEdit, QPushButton, QLabel, QFormLayout, QWidget
