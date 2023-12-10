@@ -1,0 +1,11 @@
+[[blocks]]
+hash = "3cadd31acef4e169a96116ce1e2a8ea4ec094279944cb58da75dcd539815b34a"
+previous_hash = "000000000000000000000000000000000000000000000000000000000000000000000000"
+index = 0
+nonce = 0
+[[blocks.transactions]]
+sender_addr = "mine"
+receiver_addr = "1DbmANxnphGoJ1H57EaYXQTb1yH4MEgH75"
+amount = 10
+
+

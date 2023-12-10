@@ -3,13 +3,14 @@
 import sys
 import argparse
 from PySide6.QtWidgets import QApplication, QMainWindow, QLineEdit, QPushButton, QLabel, QFormLayout, QWidget
+from PySide6.QtGui import QFont
 from src.wallet import Wallet
 
 
 class WalletWindow(QMainWindow):
     def __init__(self, node_name):
         super(WalletWindow, self).__init__()
-        self.setMinimumSize(700, 200)
+        self.setMinimumSize(500, 200)
         self.setWindowTitle(f"Wallet Client of {node_name}")
 
         try:
@@ -51,6 +52,7 @@ class WalletWindow(QMainWindow):
         central_widget = QWidget(self)
         layout = QFormLayout()
         central_widget.setLayout(layout)
+
         layout.addRow(self.walletAddressLabel, self.walletAddressTextField)
         layout.addRow(self.balanceLabel, self.balanceTextField)
         layout.addRow(QLabel(""), QLabel(""))
@@ -59,6 +61,9 @@ class WalletWindow(QMainWindow):
         layout.addWidget(self.paymentButton)
         self.setCentralWidget(central_widget)
 
+        font = QFont()
+        font.setBold(True)
+        self.balanceTextField.setFont(font)
         self.paymentButton.setStyleSheet(
             "background-color: #4CAF50; color: white; padding: 10px 20px; font-size: 16px; border: none; border-radius: 5px;"
         )

@@ -25,7 +25,7 @@ def create_wallet():
 def create_initial_ledger():
     generation_transaction = Transaction(
         sender_addr="mine",
-        receiver_addr="1MMietQo1TdZ5pwWTE16WghZpn5uuKNGdV", # satoshi's (node1) account
+        receiver_addr="1DbmANxnphGoJ1H57EaYXQTb1yH4MEgH75", # satoshi's (node1) account
         amount=10
     )
     genesis = Block(
@@ -45,27 +45,40 @@ class Node():
 
         # check if the node already exists
         node_config_dir_path = os.path.join('local_configs', name)
-        self.node_config_file_path = os.path.join(node_config_dir_path, 'config.toml')
+        self.node_wallet_config_file_path = os.path.join(node_config_dir_path, 'wallet.toml')
+        self.node_ledger_config_file_path = os.path.join(node_config_dir_path, 'ledger.toml')
         if not os.path.exists(node_config_dir_path):
             os.makedirs(node_config_dir_path)
-            # create configuration: wallet (private-public key pair), ledger, etc.
+
+            # create configuration: wallet (private-public key pair, address) and ledger
             wallet_dict = create_wallet()
             ledger_dict = create_initial_ledger()
 
-            with open(self.node_config_file_path, 'w+') as f:
+            with open(self.node_wallet_config_file_path, 'w+') as f:
                 toml.dump({
-                    'wallet': wallet_dict,
-                    'ledger': ledger_dict,
+                    'wallet': wallet_dict
                 }, f)
 
-        # read configuration into object
-        config = toml.load(self.node_config_file_path)
-        self.ledger = Blockchain.create_from_list_of_dicts(config['ledger'])
+            with open(self.node_ledger_config_file_path, 'w+') as f:
+                toml.dump({
+                    'blocks': ledger_dict
+                }, f)
+
+        # read ledger configuration into object
+        config = toml.load(self.node_ledger_config_file_path)
+        self.ledger = Blockchain.create_from_list_of_dicts(config['blocks'])
+        
+        self.transaction_pool = []
+    
+    def mine(self):
+        pass
     
     def run(self):
-
         while True: 
             time.sleep(1)
+
+    def listen_wallet(self):
+        pass
 
     def listen_neighbors(self):
         pass
