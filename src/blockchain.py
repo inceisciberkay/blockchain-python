@@ -15,10 +15,10 @@ class Blockchain():
         return blocks
 
     @classmethod
-    def create_from_list_of_dicts(cls, list_of_dicts):
+    def create_from_list_of_block_dicts(cls, list_of_dicts):
         blocks = []
         for block_dict in list_of_dicts:
-            block = Block.create_from_dict(block_dict)
+            block = Block.create_from_block_dict(block_dict)
             blocks.append(block)
 
         return Blockchain(blocks)

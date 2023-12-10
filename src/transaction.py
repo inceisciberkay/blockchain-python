@@ -12,7 +12,7 @@ class Transaction:
         }
     
     @classmethod
-    def create_from_dict(cls, transaction_dict: dict):
+    def create_from_transaction_dict(cls, transaction_dict: dict):
         return Transaction(
             sender_addr=transaction_dict['sender_addr'],
             receiver_addr=transaction_dict['receiver_addr'],

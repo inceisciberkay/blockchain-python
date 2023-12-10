@@ -23,11 +23,11 @@ class Block:
         }
     
     @classmethod
-    def create_from_dict(cls, block_dict: dict):
+    def create_from_block_dict(cls, block_dict: dict):
         # create list of transactions from a list of dictionaries
         transactions = []
         for transaction_dict in block_dict['transactions']:
-            transaction = Transaction.create_from_dict(transaction_dict)
+            transaction = Transaction.create_from_transaction_dict(transaction_dict)
             transactions.append(transaction)
 
         return Block(

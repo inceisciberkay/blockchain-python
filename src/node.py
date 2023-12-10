@@ -61,12 +61,12 @@ class Node():
 
             with open(self.node_ledger_config_file_path, 'w+') as f:
                 toml.dump({
-                    'blocks': ledger_dict
+                    'ledger': ledger_dict
                 }, f)
 
         # read ledger configuration into object
         config = toml.load(self.node_ledger_config_file_path)
-        self.ledger = Blockchain.create_from_list_of_dicts(config['blocks'])
+        self.ledger = Blockchain.create_from_list_of_block_dicts(config['ledger'])
         
         self.transaction_pool = []
     
