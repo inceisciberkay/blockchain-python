@@ -24,6 +24,6 @@ class Transaction:
     def to_str(self):
         return f"{self.sender_addr}{self.receiver_addr}{self.amount}"
     
-    def get_hash(self):
+    def hash(self):
         # todo: include timestamp field for uniqueness of transactions
         return sha256(self.to_str().encode('utf-8')).hexdigest()

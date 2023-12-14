@@ -12,7 +12,7 @@ from key_generator import *
 from block import Block
 from transaction import Transaction
 from blockchain import Blockchain
-from definitions import TRACKER_IP, TRACKER_PORT, WALLET_PORT, NODE_RECV_PORT, NODE_SEND_PORT
+from definitions import TRACKER_IP, TRACKER_PORT, WALLET_PORT, NODE_RECV_PORT, NODE_SEND_TRANSACTION_PORT, NODE_SEND_BLOCK_PORT
 
 def create_wallet():
     # Generate key pair
@@ -31,7 +31,7 @@ def create_initial_ledger():
     generation_transaction = Transaction(
         sender_addr="mine",
         receiver_addr="1DbmANxnphGoJ1H57EaYXQTb1yH4MEgH75", # satoshi's (node1) account
-        amount=10
+        amount=10.0
     )
     genesis = Block(
         index=0,
@@ -71,22 +71,75 @@ class Node():
                     'ledger': ledger_dict
                 }, f)
 
+
         # read ledger configuration into object
-        config = toml.load(self.node_ledger_config_file_path)
-        self.ledger = Blockchain.create_from_list_of_block_dicts(config['ledger'])
+        ledger_config = toml.load(self.node_ledger_config_file_path)
+        self.ledger = Blockchain.create_from_list_of_block_dicts(ledger_config['ledger'])
+
+        # read address from wallet config which will be used for mining transactions
+        self.address = toml.load(self.node_wallet_config_file_path)['wallet']['address']
         
         self.transaction_pool = []
-    
-    def mine(self):
-        # clear transaction pool
+        self.lost_round = False
+
+    def synchronize_ledger(self):
         pass
     
+    def mine(self):
+        while True:
+            # create new block (including special mine transaction)
+            mine_transaction = Transaction(
+                sender_addr="mine",
+                receiver_addr=self.address,
+                amount=10.0
+            )
+            included_transactions = [mine_transaction, *(self.transaction_pool)]
+            new_block = Block(
+                previous_hash=self.ledger.get_top().hash(),
+                index=self.ledger.get_top().index + 1,
+                nonce=0,
+                transactions = included_transactions
+            )
+
+            while not self.lost_round and not self.ledger.is_valid_proof(new_block):
+                new_block.nonce += 1
+
+            if not self.lost_round:
+                # won the round, append the block and multicast to neighbors
+                self.ledger.append_block(new_block)
+                for neighbor_name in self.neighbors:
+                    send_addr = (self.ip_address, NODE_SEND_BLOCK_PORT)
+                    neighbor_addr = (f"192.168.100.{int(neighbor_name[4:])}", NODE_RECV_PORT)
+                    # todo: node listener thread might be forwarding a block while this thread multicasts the block (very low probability), acquire appropriate lock
+                    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as send_sock:
+                        send_sock.bind(send_addr)
+                        # Construct block message
+                        message = {'type': 'block', 'data': new_block.to_dict()}
+                        send_sock.sendto(pickle.dumps(message), neighbor_addr)
+            
+                # Write the updated ledger to the config file for later reuse
+                with open(self.node_ledger_config_file_path, 'w+') as f:
+                    toml.dump({
+                        'ledger': self.ledger.to_list_of_dicts()
+                    }, f)
+
+                # remove included transactions from the transaction pool
+                included_transaction_hashes = [transaction.hash() for transaction in included_transactions]
+                new_transaction_pool = []
+                for transaction in self.transaction_pool:
+                    if transaction.hash() not in included_transaction_hashes:
+                        new_transaction_pool.append(transaction)
+
+                self.transaction_pool = new_transaction_pool
+
+    
     def run(self):
+        miner = threading.Thread(target=self.mine)
         wallet_listener= threading.Thread(target=self.listen_wallet)
         tracker_listener = threading.Thread(target=self.listen_tracker)
         neighbors_listener = threading.Thread(target=self.listen_neighbors)
 
-        self.workers = (wallet_listener, tracker_listener, neighbors_listener)
+        self.workers = (miner, wallet_listener, tracker_listener, neighbors_listener)
 
         # start threads
         for worker in self.workers:
@@ -97,22 +150,18 @@ class Node():
             worker.join()
 
     def handle_incoming_transaction(self, sender_name, transaction_dict):
-        sender_addr = transaction_dict['sender_addr']
-        receiver_addr = transaction_dict['receiver_addr']
-        amount = transaction_dict['amount']
-        print(f'{self.name} received transaction from {sender_name}: {sender_addr} {receiver_addr}, {amount}')
+        print(f'{self.name} received transaction from {sender_name}: {transaction_dict}')
 
-        # check the validity of transaction
-        # todo
+        # check the validity of transaction (todo: assume valid for now)
 
         # construct transaction object
-        new_transaction = Transaction(sender_addr, receiver_addr, amount)
+        new_transaction = Transaction.create_from_transaction_dict(transaction_dict)
 
         # add transaction to the transaction pool
         exists = False
         # check if transaction already exists in the pool
         for transaction in self.transaction_pool:
-            if transaction.get_hash() == new_transaction.get_hash():
+            if transaction.hash() == new_transaction.hash():
                 exists = True
                 return  # if transaction already exists in the pool, do not forward to neighbors
         if not exists:
@@ -121,7 +170,7 @@ class Node():
         # propagate it through the network (by passing to neighbors)
         for neighbor_name in self.neighbors:
             if neighbor_name == sender_name: continue   # do not forward message to sender
-            send_addr = (self.ip_address, NODE_SEND_PORT)
+            send_addr = (self.ip_address, NODE_SEND_TRANSACTION_PORT)
             neighbor_addr = (f"192.168.100.{int(neighbor_name[4:])}", NODE_RECV_PORT)
             with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as send_sock:
                 send_sock.bind(send_addr)
@@ -131,7 +180,48 @@ class Node():
 
     
     def handle_incoming_block(self, sender_name, block_dict):
-        pass
+        print(f'{self.name} received block from {sender_name}: {block_dict}')
+
+        # check the validity of block (todo: for now simply check if its previous hash matches the top block's hash)
+        if block_dict['previous_hash'] == self.ledger.get_top().hash():
+            return
+
+        # if valid, signal to stop mining
+        self.lost_round = True  # python assignments are atomic
+
+        # construct block object
+        new_block = Block.create_from_block_dict(block_dict)
+
+        # add block to the local ledger
+        # for now no need to check if the block is already received since in that case received block would be on top
+        self.ledger.append_block(new_block)
+
+        # propagate block through network by passing to neighbors
+        for neighbor_name in self.neighbors:
+            if neighbor_name == sender_name: continue   # do not forward message to sender
+            send_addr = (self.ip_address, NODE_SEND_BLOCK_PORT)
+            neighbor_addr = (f"192.168.100.{int(neighbor_name[4:])}", NODE_RECV_PORT)
+            with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as send_sock:
+                send_sock.bind(send_addr)
+                # construct block message
+                message = {'type': 'block', 'data': new_block.to_dict()}
+                send_sock.sendto(pickle.dumps(message), neighbor_addr)
+
+        # refine transaction pool based on incoming block: remove included transactions from the transaction pool
+        included_transaction_hashes = [transaction.hash() for transaction in new_block.transactions]
+        new_transaction_pool = []
+        for transaction in self.transaction_pool:
+            if transaction.hash() not in included_transaction_hashes:
+                new_transaction_pool.append(transaction)
+
+        self.transaction_pool = new_transaction_pool
+
+        # write new ledger to config file for later reuse
+        with open(self.node_ledger_config_file_path, 'w+') as f:
+            toml.dump({
+                'ledger': self.ledger.to_list_of_dicts()
+            }, f)
+        
 
     def listen_wallet(self):
         wallet_addr = (self.ip_address, WALLET_PORT)

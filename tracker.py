@@ -9,9 +9,9 @@ class Tracker:
         self.up_and_running_nodes = {}  # key: node_name, value: socket
 
     def update_neighbors(self):
-        active_nodes = [name for name, _ in self.up_and_running_nodes.items()]
         # Send the list of active nodes to the newly connected node
         for node_name, socket in self.up_and_running_nodes.items():
+            active_nodes = [name for name, _ in self.up_and_running_nodes.items() if name != node_name]
             socket.send(str(active_nodes).encode('utf-8'))
 
     def handle_node_connection(self, node_socket):

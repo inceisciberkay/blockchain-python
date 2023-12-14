@@ -1,11 +1,9 @@
 [[ledger]]
-hash = "3cadd31acef4e169a96116ce1e2a8ea4ec094279944cb58da75dcd539815b34a"
+hash = "e50a440146599978cd0f51c6806fbc33993cad125ff923868e924144646b6549"
 previous_hash = "000000000000000000000000000000000000000000000000000000000000000000000000"
 index = 0
 nonce = 0
 [[ledger.transactions]]
 sender_addr = "mine"
 receiver_addr = "1DbmANxnphGoJ1H57EaYXQTb1yH4MEgH75"
-amount = 10
-
-
+amount = 10.0

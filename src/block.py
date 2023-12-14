@@ -40,7 +40,6 @@ class Block:
     def hash(self):
         transactions_str = ""
         for transaction in self.transactions:
-            print(transaction)
             transactions_str += transaction.to_str()
 
         concatenated_str = (str(self.index) 

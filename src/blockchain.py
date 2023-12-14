@@ -1,7 +1,7 @@
 from block import Block
 
 class Blockchain():
-    difficulty = 5
+    difficulty = 6
 
     def __init__(self, blocks):
         self.blocks = blocks
@@ -13,6 +13,16 @@ class Blockchain():
             blocks.append(block.to_dict())
             
         return blocks
+    
+    def get_top(self):
+        return self.blocks[-1]
+
+    def append_block(self, block):
+        self.blocks.append(block)
+    
+    def is_valid_proof(self, block):
+        difficulty_prefix = '0' * self.difficulty
+        return block.hash().startswith(difficulty_prefix)
 
     @classmethod
     def create_from_list_of_block_dicts(cls, list_of_dicts):
