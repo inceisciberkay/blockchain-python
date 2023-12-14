@@ -4,10 +4,13 @@ import sys
 import signal
 import os
 import toml
+import socket
+import threading
 from key_generator import *
 from block import Block
 from transaction import Transaction
 from blockchain import Blockchain
+from definitions import TRACKER_IP, PORT
 
 def create_wallet():
     # Generate key pair
@@ -41,7 +44,10 @@ def create_initial_ledger():
 
 class Node():
     def __init__(self, name):
+        self.exit_signal = threading.Event()
         self.name = name
+        self.ip_address = f"192.168.100.{int(name[4:])}"  # Assuming the node name is in the format "nodeX"
+        self.neighbors = None
 
         # check if the node already exists
         node_config_dir_path = os.path.join('local_configs', name)
@@ -74,21 +80,47 @@ class Node():
         pass
     
     def run(self):
+        wallet_listener= threading.Thread(target=self.listen_wallet)
+        tracker_listener = threading.Thread(target=self.listen_tracker)
+        neighbors_listener = threading.Thread(target=self.listen_neighbors)
+
+        self.workers = (wallet_listener, tracker_listener, neighbors_listener)
+
+        # start threads
+        for worker in self.workers:
+            worker.daemon = True
+            worker.start()
+
+        for worker in self.workers:
+            worker.join()
+
+    def listen_wallet(self):
         while True: 
             time.sleep(1)
 
-    def listen_wallet(self):
-        pass
-
     def listen_neighbors(self):
-        pass
+        while True: 
+            time.sleep(1)
 
     def listen_tracker(self):
-        pass
+        tracker_addr = (TRACKER_IP, PORT)  # Tracker's address
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as tracker_socket:
+            tracker_socket.connect(tracker_addr)
+            # tell tracker that i am up and running
+            tracker_socket.send(f"{self.name}_{self.ip_address}".encode('utf-8'))   
+
+            while True:
+                # Receive the list of neighbors from the tracker
+                neighbors = tracker_socket.recv(1024).decode('utf-8')
+                self.neighbors = eval(neighbors)  # Convert the string to a list
+
+                print(f"Neighbors are updated: {self.neighbors}")
+
 
 def signal_handler(signum, frame):
     # do something
     sys.exit(0)
+    exit()
 
 def background_task(process_id: str):
     # register signal
@@ -97,6 +129,8 @@ def background_task(process_id: str):
     # create node
     node_name = process_id.split('_')[0]
     node = Node(node_name)
+
+    # run node
     node.run()
 
 if __name__ == "__main__":
