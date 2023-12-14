@@ -79,11 +79,19 @@ class WalletWindow(QMainWindow):
             assert(self.recipient_address is not None)
             assert(self.amount is not None)
             amount = float(self.amount)
+            self.wallet.create_transaction(self.recipient_address, amount)
+            self.reset_fields()
 
         except AssertionError:
             print('Recipient Address and Amount must be specified')
         except ValueError:
             print('Amount should be a floating point number')
+
+    def reset_fields(self):
+        self.recipientAddressInput.clear()
+        self.amountInput.clear()
+        self.recipient_address = None
+        self.amount = None
 
 
 def window(node_name: str):

@@ -10,7 +10,7 @@ from key_generator import *
 from block import Block
 from transaction import Transaction
 from blockchain import Blockchain
-from definitions import TRACKER_IP, PORT
+from definitions import TRACKER_IP, MAIN_PORT, WALLET_PORT
 
 def create_wallet():
     # Generate key pair
@@ -44,7 +44,6 @@ def create_initial_ledger():
 
 class Node():
     def __init__(self, name):
-        self.exit_signal = threading.Event()
         self.name = name
         self.ip_address = f"192.168.100.{int(name[4:])}"  # Assuming the node name is in the format "nodeX"
         self.neighbors = None
@@ -94,7 +93,25 @@ class Node():
         for worker in self.workers:
             worker.join()
 
+    def handle_incoming_transaction(self, receiver_addr, amount):
+        print(f'{self.name} received transaction: {receiver_addr}, {amount}')
+        # check the validity of transaction
+
+        # add transaction to the transaction pool
+
+        # propagate it through the network (by passing to neighbors)
+
     def listen_wallet(self):
+        wallet_addr = (self.ip_address, WALLET_PORT)
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as wallet_socket:
+            wallet_socket.bind(wallet_addr)
+            wallet_socket.listen(1) # one node have only one wallet
+
+            while True:
+                s, _ = wallet_socket.accept()
+                receiver_addr, amount = s.recv(1024).decode('utf-8').split('_')
+                self.handle_incoming_transaction(receiver_addr, float(amount))
+
         while True: 
             time.sleep(1)
 
@@ -103,7 +120,7 @@ class Node():
             time.sleep(1)
 
     def listen_tracker(self):
-        tracker_addr = (TRACKER_IP, PORT)  # Tracker's address
+        tracker_addr = (TRACKER_IP, MAIN_PORT)  # Tracker's address
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as tracker_socket:
             tracker_socket.connect(tracker_addr)
             # tell tracker that i am up and running
@@ -120,7 +137,6 @@ class Node():
 def signal_handler(signum, frame):
     # do something
     sys.exit(0)
-    exit()
 
 def background_task(process_id: str):
     # register signal

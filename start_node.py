@@ -10,7 +10,6 @@ def node_already_running(node_arg):
         if node_arg in process.info['cmdline']:
             return True
 
-
 def start_node_in_background(node_name: str):
     try:
         node_arg = f"{node_name}_{sha1(node_name.encode('utf-8')).hexdigest()}" 
