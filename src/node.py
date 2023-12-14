@@ -6,11 +6,13 @@ import os
 import toml
 import socket
 import threading
+import time
+import pickle
 from key_generator import *
 from block import Block
 from transaction import Transaction
 from blockchain import Blockchain
-from definitions import TRACKER_IP, MAIN_PORT, WALLET_PORT
+from definitions import TRACKER_IP, TRACKER_PORT, WALLET_PORT, NODE_RECV_PORT, NODE_SEND_PORT
 
 def create_wallet():
     # Generate key pair
@@ -46,7 +48,7 @@ class Node():
     def __init__(self, name):
         self.name = name
         self.ip_address = f"192.168.100.{int(name[4:])}"  # Assuming the node name is in the format "nodeX"
-        self.neighbors = None
+        self.neighbors = []
 
         # check if the node already exists
         node_config_dir_path = os.path.join('local_configs', name)
@@ -76,6 +78,7 @@ class Node():
         self.transaction_pool = []
     
     def mine(self):
+        # clear transaction pool
         pass
     
     def run(self):
@@ -93,13 +96,42 @@ class Node():
         for worker in self.workers:
             worker.join()
 
-    def handle_incoming_transaction(self, receiver_addr, amount):
-        print(f'{self.name} received transaction: {receiver_addr}, {amount}')
+    def handle_incoming_transaction(self, sender_name, transaction_dict):
+        sender_addr = transaction_dict['sender_addr']
+        receiver_addr = transaction_dict['receiver_addr']
+        amount = transaction_dict['amount']
+        print(f'{self.name} received transaction from {sender_name}: {sender_addr} {receiver_addr}, {amount}')
+
         # check the validity of transaction
+        # todo
+
+        # construct transaction object
+        new_transaction = Transaction(sender_addr, receiver_addr, amount)
 
         # add transaction to the transaction pool
+        exists = False
+        # check if transaction already exists in the pool
+        for transaction in self.transaction_pool:
+            if transaction.get_hash() == new_transaction.get_hash():
+                exists = True
+                return  # if transaction already exists in the pool, do not forward to neighbors
+        if not exists:
+            self.transaction_pool.append(new_transaction)
 
         # propagate it through the network (by passing to neighbors)
+        for neighbor_name in self.neighbors:
+            if neighbor_name == sender_name: continue   # do not forward message to sender
+            send_addr = (self.ip_address, NODE_SEND_PORT)
+            neighbor_addr = (f"192.168.100.{int(neighbor_name[4:])}", NODE_RECV_PORT)
+            with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as send_sock:
+                send_sock.bind(send_addr)
+                # construct transaction message
+                message = {'type': 'transaction', 'data': new_transaction.to_dict()}
+                send_sock.sendto(pickle.dumps(message), neighbor_addr)
+
+    
+    def handle_incoming_block(self, sender_name, block_dict):
+        pass
 
     def listen_wallet(self):
         wallet_addr = (self.ip_address, WALLET_PORT)
@@ -109,18 +141,45 @@ class Node():
 
             while True:
                 s, _ = wallet_socket.accept()
-                receiver_addr, amount = s.recv(1024).decode('utf-8').split('_')
-                self.handle_incoming_transaction(receiver_addr, float(amount))
-
-        while True: 
-            time.sleep(1)
+                sender_addr, receiver_addr, amount = s.recv(1024).decode('utf-8').split('_')
+                self.handle_incoming_transaction(
+                    self.name,
+                    {
+                    'sender_addr': sender_addr, 
+                    'receiver_addr': receiver_addr, 
+                    'amount': float(amount)
+                    })
 
     def listen_neighbors(self):
-        while True: 
-            time.sleep(1)
+        # neighbors can send transactions or blocks
+        # communication between neighbors happens connectionless (UDP) 
+        recv_addr = (self.ip_address, NODE_RECV_PORT)
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as recv_socket:
+            recv_socket.bind(recv_addr)
+            recv_socket.setblocking(False)
+            while True: 
+                try:
+                    data, sender_addr = recv_socket.recvfrom(1024)
+                    sender_ip, _ = sender_addr
+                    sender_name = f'node{sender_ip.split(".")[3]}'
+                    message = pickle.loads(data)
+                    if message['type'] == 'transaction':
+                        # assume the message format is correct
+                        self.handle_incoming_transaction(sender_name, message['data'])
+                    elif message['type'] == 'block':
+                        # assume the message format is correct
+                        self.handle_incoming_block(sender_name, message['data'])
+                    else:
+                        print(f'Unsupported message type: {message["type"]}')
+
+                except socket.error as e:
+                    # no message is received from the socket
+                    pass
+
+                time.sleep(0.1)  # Add a short delay to avoid busy-waiting
 
     def listen_tracker(self):
-        tracker_addr = (TRACKER_IP, MAIN_PORT)  # Tracker's address
+        tracker_addr = (TRACKER_IP, TRACKER_PORT)  # Tracker's address
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as tracker_socket:
             tracker_socket.connect(tracker_addr)
             # tell tracker that i am up and running

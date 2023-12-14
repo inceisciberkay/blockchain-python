@@ -2,7 +2,7 @@ import threading
 import sys
 import signal
 import socket
-from src.definitions import TRACKER_IP, MAIN_PORT, MAX_NUMBER_OF_NODES
+from src.definitions import TRACKER_IP, TRACKER_PORT, MAX_NUMBER_OF_NODES
 
 class Tracker:
     def __init__(self):
@@ -21,7 +21,7 @@ class Tracker:
         self.update_neighbors()
 
     def listen_nodes(self):
-        tracker_addr = (TRACKER_IP, MAIN_PORT)
+        tracker_addr = (TRACKER_IP, TRACKER_PORT)
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as tracker_socket:
             tracker_socket.bind(tracker_addr)
             tracker_socket.listen(MAX_NUMBER_OF_NODES)

@@ -34,4 +34,4 @@ class Wallet():
             wallet_socket.connect(wallet_addr)
             # send transaction to the node holding the wallet
             # transaction will be propagated through its node
-            wallet_socket.send(f"{receiver_addr}_{amount}".encode('utf-8'))
+            wallet_socket.send(f"{self.address}_{receiver_addr}_{amount}".encode('utf-8'))

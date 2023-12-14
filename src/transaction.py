@@ -1,3 +1,5 @@
+from hashlib import sha256
+
 class Transaction:
     def __init__(self, sender_addr, receiver_addr, amount):
         self.sender_addr = sender_addr
@@ -21,3 +23,7 @@ class Transaction:
     
     def to_str(self):
         return f"{self.sender_addr}{self.receiver_addr}{self.amount}"
+    
+    def get_hash(self):
+        # todo: include timestamp field for uniqueness of transactions
+        return sha256(self.to_str().encode('utf-8')).hexdigest()
