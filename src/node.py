@@ -12,7 +12,9 @@ from key_generator import *
 from block import Block
 from transaction import Transaction
 from blockchain import Blockchain
-from definitions import TRACKER_IP, TRACKER_PORT, WALLET_PORT, NODE_RECV_PORT, NODE_SEND_TRANSACTION_PORT, NODE_SEND_BLOCK_PORT, SEED_PORT, MAX_NUMBER_OF_NODES
+from definitions import TRACKER_IP, TRACKER_PORT, WALLET_PORT, NODE_RECV_PORT, \
+    NODE_SEND_TRANSACTION_PORT, NODE_PROPAGATE_BLOCK_PORT, NODE_SEND_MINED_BLOCK_PORT, \
+    SEED_PORT, MAX_NUMBER_OF_NODES 
 
 def create_wallet():
     # Generate key pair
@@ -169,9 +171,8 @@ class Node():
                 # won the round, append the block and multicast to neighbors
                 self.ledger.append_block(new_block)
                 for neighbor_name in self.neighbors:
-                    send_addr = (self.ip_address, NODE_SEND_BLOCK_PORT)
+                    send_addr = (self.ip_address, NODE_SEND_MINED_BLOCK_PORT)
                     neighbor_addr = (f"192.168.100.{int(neighbor_name[4:])}", NODE_RECV_PORT)
-                    # todo: node listener thread might be forwarding a block while this thread multicasts the block (very low probability), acquire appropriate lock
                     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as send_sock:
                         send_sock.bind(send_addr)
                         # Construct block message
@@ -262,7 +263,7 @@ class Node():
         # propagate block through network by passing to neighbors
         for neighbor_name in self.neighbors:
             if neighbor_name == sender_name: continue   # do not forward message to sender
-            send_addr = (self.ip_address, NODE_SEND_BLOCK_PORT)
+            send_addr = (self.ip_address, NODE_PROPAGATE_BLOCK_PORT)
             neighbor_addr = (f"192.168.100.{int(neighbor_name[4:])}", NODE_RECV_PORT)
             with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as send_sock:
                 send_sock.bind(send_addr)

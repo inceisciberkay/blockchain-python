@@ -1,7 +1,7 @@
 from block import Block
 
 class Blockchain():
-    difficulty = 6
+    difficulty = 7
 
     def __init__(self, blocks):
         self.blocks = blocks
