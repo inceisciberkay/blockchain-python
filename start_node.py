@@ -18,8 +18,7 @@ def start_node_in_background(node_name: str):
             return
 
         command = f"python3 src/node.py {node_arg}"
-        # TODO: remove below
-        f = open('log.txt', 'w')
+        f = open(f'logs/log_{node_name}.txt', 'w')
         subprocess.Popen(command, shell=True, stdout=f, stderr=f)
     except Exception as e:
         print(f"Error starting node {node_name}: {e}")

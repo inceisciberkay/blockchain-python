@@ -101,9 +101,10 @@ class Node():
             print('No currently running active node')
             return
 
-        seeder_addr = (f"192.168.100.{int(seeder[4:])}", SEED_PORT)
-        
+        print(f'My seeder: {seeder}')
+
         # establish connection to seeder node
+        seeder_addr = (f"192.168.100.{int(seeder[4:])}", SEED_PORT)
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as seeder_socket:
             seeder_socket.connect(seeder_addr)
             msg = {
@@ -143,6 +144,7 @@ class Node():
                         'type': 'block',
                         'block': block.to_dict()
                     }))
+                    time.sleep(0.01)
                 s.send(pickle.dumps({
                     'type': 'finish',
                 }))
@@ -295,14 +297,12 @@ class Node():
 
             while True:
                 s, _ = wallet_socket.accept()
-                sender_addr, receiver_addr, amount = s.recv(1024).decode('utf-8').split('_')
+                data = s.recv(1024)
+                transaction_dict = pickle.loads(data)
                 self.handle_incoming_transaction(
                     self.name,
-                    {
-                    'sender_addr': sender_addr, 
-                    'receiver_addr': receiver_addr, 
-                    'amount': float(amount)
-                    })
+                    transaction_dict
+                )
 
     def listen_neighbors(self):
         # neighbors can send transactions or blocks

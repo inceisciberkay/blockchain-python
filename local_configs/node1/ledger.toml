@@ -86,3 +86,25 @@ receiver_addr = "1KWkpNhKgDdKK7BvDxTzNtkbzMPSxsNdYj"
 amount = 10.0
 
 
+[[ledger]]
+hash = "00000009840c14b26891567ad3aa23d5349c920e525805f243b6202ca4c253ba"
+previous_hash = "00000003d50c9326ba3e9fb4366a6e481281a64023e2a6371b15557f9314a62e"
+index = 8
+nonce = 10860203
+[[ledger.transactions]]
+sender_addr = "mine"
+receiver_addr = "1PcfuAE6URnVvcpg7t7YE4LKEjVY73m22B"
+amount = 10.0
+
+
+[[ledger]]
+hash = "00000006f2f8471c645910253910b1b85b8073f41e621ddecc9955b46ab30353"
+previous_hash = "00000009840c14b26891567ad3aa23d5349c920e525805f243b6202ca4c253ba"
+index = 9
+nonce = 1051668
+[[ledger.transactions]]
+sender_addr = "mine"
+receiver_addr = "1CPLo3yYciKmGPrtBgMgdNofcT1bYxn46n"
+amount = 10.0
+
+

@@ -1,6 +1,7 @@
 import os
 import toml
 import socket
+import pickle
 from src.definitions import WALLET_PORT
 
 class Wallet():
@@ -34,4 +35,9 @@ class Wallet():
             wallet_socket.connect(wallet_addr)
             # send transaction to the node holding the wallet
             # transaction will be propagated through its node
-            wallet_socket.send(f"{self.address}_{receiver_addr}_{amount}".encode('utf-8'))
+            msg = {
+                'sender_addr': self.address,
+                'receiver_addr': receiver_addr,
+                'amount': amount
+            }
+            wallet_socket.send(pickle.dumps(msg))
