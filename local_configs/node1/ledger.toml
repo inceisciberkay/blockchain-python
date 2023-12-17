@@ -7,3 +7,71 @@ nonce = 0
 sender_addr = "mine"
 receiver_addr = "1DbmANxnphGoJ1H57EaYXQTb1yH4MEgH75"
 amount = 10.0
+
+
+[[ledger]]
+hash = "000000f78413abc41e94442793dc92d87cdd42ea60a111af98cf4dc1f91abec3"
+previous_hash = "e50a440146599978cd0f51c6806fbc33993cad125ff923868e924144646b6549"
+index = 1
+nonce = 1341703
+[[ledger.transactions]]
+sender_addr = "mine"
+receiver_addr = "1DbmANxnphGoJ1H57EaYXQTb1yH4MEgH75"
+amount = 10.0
+
+
+[[ledger]]
+hash = "0000007a5882c5b57986a09432caa1d32eaa6baba8e7706472747f3cc0a3cf4d"
+previous_hash = "000000f78413abc41e94442793dc92d87cdd42ea60a111af98cf4dc1f91abec3"
+index = 2
+nonce = 6632131
+[[ledger.transactions]]
+sender_addr = "mine"
+receiver_addr = "1DbmANxnphGoJ1H57EaYXQTb1yH4MEgH75"
+amount = 10.0
+
+
+[[ledger]]
+hash = "0000001808a12a9a347c1f43044a40090dd1662bf5ac52d04d061fe587681780"
+previous_hash = "0000007a5882c5b57986a09432caa1d32eaa6baba8e7706472747f3cc0a3cf4d"
+index = 3
+nonce = 9829044
+[[ledger.transactions]]
+sender_addr = "mine"
+receiver_addr = "1DbmANxnphGoJ1H57EaYXQTb1yH4MEgH75"
+amount = 10.0
+
+
+[[ledger]]
+hash = "00000055d515ab6a7013111ec6a124e7252e88ea6eed9081aa93ff067fd17dab"
+previous_hash = "0000001808a12a9a347c1f43044a40090dd1662bf5ac52d04d061fe587681780"
+index = 4
+nonce = 5804673
+[[ledger.transactions]]
+sender_addr = "mine"
+receiver_addr = "1DbmANxnphGoJ1H57EaYXQTb1yH4MEgH75"
+amount = 10.0
+
+
+[[ledger]]
+hash = "000000fc143775af1a37373ed42c63955ae24257dd3bb36fb28f20c7d37ad6cc"
+previous_hash = "00000055d515ab6a7013111ec6a124e7252e88ea6eed9081aa93ff067fd17dab"
+index = 5
+nonce = 662236
+[[ledger.transactions]]
+sender_addr = "mine"
+receiver_addr = "1DbmANxnphGoJ1H57EaYXQTb1yH4MEgH75"
+amount = 10.0
+
+
+[[ledger]]
+hash = "000000b35074e8c5203f14bed58aa5abb2031805777e2ba88e88a47982bcf878"
+previous_hash = "000000fc143775af1a37373ed42c63955ae24257dd3bb36fb28f20c7d37ad6cc"
+index = 6
+nonce = 40706746
+[[ledger.transactions]]
+sender_addr = "mine"
+receiver_addr = "1DbmANxnphGoJ1H57EaYXQTb1yH4MEgH75"
+amount = 10.0
+
+

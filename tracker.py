@@ -2,6 +2,8 @@ import threading
 import sys
 import signal
 import socket
+import pickle
+import random
 from src.definitions import TRACKER_IP, TRACKER_PORT, MAX_NUMBER_OF_NODES
 
 class Tracker:
@@ -15,14 +17,28 @@ class Tracker:
             socket.send(str(active_nodes).encode('utf-8'))
 
     def handle_node_connection(self, node_socket):
-        node_name, node_ip_addr = node_socket.recv(1024).decode('utf-8').split('_')
+        msg = pickle.loads(node_socket.recv(1024))
+        if msg['type'] == 'seed':
+            # choose one node from up and running nodes
+            key_list = list(self.up_and_running_nodes.keys())
+            if len(key_list) == 0:
+                seed = 'None'
+            else:
+                seed = random.choice(key_list)
+            node_socket.send(seed.encode('utf-8'))
+            node_socket.close()
+            return
+
+        # else, msg type is update
+        node_name = msg['node_name']
         self.up_and_running_nodes[node_name] = node_socket
-        print(f"Node {node_name} connected from {node_ip_addr}")
+        print(f"Node {node_name} is connected")
         self.update_neighbors()
 
     def listen_nodes(self):
         tracker_addr = (TRACKER_IP, TRACKER_PORT)
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as tracker_socket:
+            tracker_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             tracker_socket.bind(tracker_addr)
             tracker_socket.listen(MAX_NUMBER_OF_NODES)
 

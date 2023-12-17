@@ -12,7 +12,7 @@ from key_generator import *
 from block import Block
 from transaction import Transaction
 from blockchain import Blockchain
-from definitions import TRACKER_IP, TRACKER_PORT, WALLET_PORT, NODE_RECV_PORT, NODE_SEND_TRANSACTION_PORT, NODE_SEND_BLOCK_PORT
+from definitions import TRACKER_IP, TRACKER_PORT, WALLET_PORT, NODE_RECV_PORT, NODE_SEND_TRANSACTION_PORT, NODE_SEND_BLOCK_PORT, SEED_PORT, MAX_NUMBER_OF_NODES
 
 def create_wallet():
     # Generate key pair
@@ -82,8 +82,68 @@ class Node():
         self.transaction_pool = []
         self.lost_round = False
 
+        self.synchronize_ledger()
+
     def synchronize_ledger(self):
-        pass
+        tracker_addr = (TRACKER_IP, TRACKER_PORT)  # Tracker's address
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as tracker_socket:
+            tracker_socket.connect(tracker_addr)
+            # tell tracker that i am up and running, and need some seed nodes to synchronize
+            msg = {
+                'type': 'seed'
+            }
+            tracker_socket.send(pickle.dumps(msg))   
+            seeder = tracker_socket.recv(1024).decode('utf-8')
+        
+        if seeder == 'None':
+            print('No currently running active node')
+            return
+
+        seeder_addr = (f"192.168.100.{int(seeder[4:])}", SEED_PORT)
+        
+        # establish connection to seeder node
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as seeder_socket:
+            seeder_socket.connect(seeder_addr)
+            msg = {
+                'start_from': self.ledger.get_length()
+            }
+            seeder_socket.send(pickle.dumps(msg))
+            while True:
+                # Receive blocks one by one from a currently running node that has full copy of blockchain
+                msg = pickle.loads(seeder_socket.recv(1024))
+                if msg['type'] == 'finish':
+                    break
+                # TODO: validate the block
+                block = Block.create_from_block_dict(msg['block'])
+                self.ledger.append_block(block)
+
+                # Write the updated ledger to the config file for demonstration
+                with open(self.node_ledger_config_file_path, 'w+') as f:
+                    toml.dump({
+                        'ledger': self.ledger.to_list_of_dicts()
+                    }, f)
+
+            # TODO: handle disconnection case
+
+    
+    def listen_seed(self):
+        seed_addr = (self.ip_address, SEED_PORT)
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as seed_socket:
+            seed_socket.bind(seed_addr)
+            seed_socket.listen(MAX_NUMBER_OF_NODES)
+
+            while True:
+                s, _ = seed_socket.accept()
+                msg = pickle.loads(s.recv(1024))
+                start_from = int(msg['start_from'])
+                for block in self.ledger.blocks[start_from:]:
+                    s.send(pickle.dumps({
+                        'type': 'block',
+                        'block': block.to_dict()
+                    }))
+                s.send(pickle.dumps({
+                    'type': 'finish',
+                }))
     
     def mine(self):
         while True:
@@ -135,11 +195,12 @@ class Node():
     
     def run(self):
         miner = threading.Thread(target=self.mine)
+        seed_listener = threading.Thread(target=self.listen_seed)
         wallet_listener= threading.Thread(target=self.listen_wallet)
         tracker_listener = threading.Thread(target=self.listen_tracker)
         neighbors_listener = threading.Thread(target=self.listen_neighbors)
 
-        self.workers = (miner, wallet_listener, tracker_listener, neighbors_listener)
+        self.workers = (miner, seed_listener, wallet_listener, tracker_listener, neighbors_listener)
 
         # start threads
         for worker in self.workers:
@@ -243,6 +304,7 @@ class Node():
     def listen_neighbors(self):
         # neighbors can send transactions or blocks
         # communication between neighbors happens connectionless (UDP) 
+        # channels are unidirectional
         recv_addr = (self.ip_address, NODE_RECV_PORT)
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as recv_socket:
             recv_socket.bind(recv_addr)
@@ -272,8 +334,12 @@ class Node():
         tracker_addr = (TRACKER_IP, TRACKER_PORT)  # Tracker's address
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as tracker_socket:
             tracker_socket.connect(tracker_addr)
-            # tell tracker that i am up and running
-            tracker_socket.send(f"{self.name}_{self.ip_address}".encode('utf-8'))   
+            # tell tracker that i am ready to get neighbor updates
+            msg = {
+                'type': 'update',
+                'node_name': self.name
+            }
+            tracker_socket.send(pickle.dumps(msg))   
 
             while True:
                 # Receive the list of neighbors from the tracker

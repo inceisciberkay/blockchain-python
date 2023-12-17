@@ -17,6 +17,9 @@ class Blockchain():
     def get_top(self):
         return self.blocks[-1]
 
+    def get_length(self):
+        return len(self.blocks)
+
     def append_block(self, block):
         self.blocks.append(block)
     
