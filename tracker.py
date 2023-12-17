@@ -10,11 +10,13 @@ class Tracker:
     def __init__(self):
         self.up_and_running_nodes = {}  # key: node_name, value: socket
 
+    # TODO: below is terrible
     def update_neighbors(self):
-        # Send the list of active nodes to the newly connected node
         for node_name, socket in self.up_and_running_nodes.items():
-            active_nodes = [name for name, _ in self.up_and_running_nodes.items() if name != node_name]
-            socket.send(str(active_nodes).encode('utf-8'))
+            neighbors = [name for name, _ in self.up_and_running_nodes.items() if name != node_name and random.randint(0,1) == 1]
+            if len(neighbors) == 0: # give at least one neighbor
+                neighbors = [name for name, _ in self.up_and_running_nodes.items() if name != node_name]
+            socket.send(str(neighbors).encode('utf-8'))
 
     def handle_node_connection(self, node_socket):
         msg = pickle.loads(node_socket.recv(1024))
@@ -34,6 +36,7 @@ class Tracker:
         self.up_and_running_nodes[node_name] = node_socket
         print(f"Node {node_name} is connected")
         self.update_neighbors()
+    # TODO: remove from active nodes if inactive for some time
 
     def listen_nodes(self):
         tracker_addr = (TRACKER_IP, TRACKER_PORT)

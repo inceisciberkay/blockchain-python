@@ -79,8 +79,8 @@ class Node():
         # read address from wallet config which will be used for mining transactions
         self.address = toml.load(self.node_wallet_config_file_path)['wallet']['address']
         
+        self.orphan_blocks = set()
         self.transaction_pool = []
-        self.lost_round = False
 
         self.synchronize_ledger()
 
@@ -147,6 +147,7 @@ class Node():
     
     def mine(self):
         while True:
+            self.lost_round = False
             # create new block (including special mine transaction)
             mine_transaction = Transaction(
                 sender_addr="mine",
@@ -244,7 +245,8 @@ class Node():
         print(f'{self.name} received block from {sender_name}: {block_dict}')
 
         # check the validity of block (todo: for now simply check if its previous hash matches the top block's hash)
-        if block_dict['previous_hash'] == self.ledger.get_top().hash():
+        if block_dict['previous_hash'] != self.ledger.get_top().hash():
+            self.orphan_blocks.add(Block.create_from_block_dict(block_dict))
             return
 
         # if valid, signal to stop mining
