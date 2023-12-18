@@ -188,15 +188,17 @@ class Node():
                     }, f)
 
                 # remove included transactions from the transaction pool
-                included_transaction_hashes = [transaction.hash() for transaction in included_transactions]
-                new_transaction_pool = []
-                for transaction in self.transaction_pool:
-                    if transaction.hash() not in included_transaction_hashes:
-                        new_transaction_pool.append(transaction)
-
-                self.transaction_pool = new_transaction_pool
-
+                self.update_transaction_pool(included_transactions)
     
+    def update_transaction_pool(self, included_transactions):
+        included_transaction_hashes = [transaction.hash() for transaction in included_transactions]
+        new_transaction_pool = []
+        for transaction in self.transaction_pool:
+            if transaction.hash() not in included_transaction_hashes:
+                new_transaction_pool.append(transaction)
+
+        self.transaction_pool = new_transaction_pool
+
     def run(self):
         miner = threading.Thread(target=self.mine)
         seed_listener = threading.Thread(target=self.listen_seed)
@@ -223,14 +225,12 @@ class Node():
         new_transaction = Transaction.create_from_transaction_dict(transaction_dict)
 
         # add transaction to the transaction pool
-        exists = False
         # check if transaction already exists in the pool
         for transaction in self.transaction_pool:
             if transaction.hash() == new_transaction.hash():
-                exists = True
                 return  # if transaction already exists in the pool, do not forward to neighbors
-        if not exists:
-            self.transaction_pool.append(new_transaction)
+
+        self.transaction_pool.append(new_transaction)
 
         # propagate it through the network (by passing to neighbors)
         for neighbor_name in self.neighbors:
@@ -260,13 +260,7 @@ class Node():
         self.ledger.append_block(new_block)
 
         # refine transaction pool based on incoming block: remove included transactions from the transaction pool
-        included_transaction_hashes = [transaction.hash() for transaction in new_block.transactions]
-        new_transaction_pool = []
-        for transaction in self.transaction_pool:
-            if transaction.hash() not in included_transaction_hashes:
-                new_transaction_pool.append(transaction)
-
-        self.transaction_pool = new_transaction_pool
+        self.update_transaction_pool(new_block.transactions)
 
         # if block is valid, signal to stop mining
         self.lost_round = True  # python assignments are atomic
