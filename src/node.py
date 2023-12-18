@@ -252,15 +252,24 @@ class Node():
             self.orphan_blocks.add(Block.create_from_block_dict(block_dict))
             return
 
-        # if valid, signal to stop mining
-        self.lost_round = True  # python assignments are atomic
-
         # construct block object
         new_block = Block.create_from_block_dict(block_dict)
 
         # add block to the local ledger
         # for now no need to check if the block is already received since in that case received block would be on top
         self.ledger.append_block(new_block)
+
+        # refine transaction pool based on incoming block: remove included transactions from the transaction pool
+        included_transaction_hashes = [transaction.hash() for transaction in new_block.transactions]
+        new_transaction_pool = []
+        for transaction in self.transaction_pool:
+            if transaction.hash() not in included_transaction_hashes:
+                new_transaction_pool.append(transaction)
+
+        self.transaction_pool = new_transaction_pool
+
+        # if block is valid, signal to stop mining
+        self.lost_round = True  # python assignments are atomic
 
         # propagate block through network by passing to neighbors
         for neighbor_name in self.neighbors:
@@ -272,15 +281,6 @@ class Node():
                 # construct block message
                 message = {'type': 'block', 'data': new_block.to_dict()}
                 send_sock.sendto(pickle.dumps(message), neighbor_addr)
-
-        # refine transaction pool based on incoming block: remove included transactions from the transaction pool
-        included_transaction_hashes = [transaction.hash() for transaction in new_block.transactions]
-        new_transaction_pool = []
-        for transaction in self.transaction_pool:
-            if transaction.hash() not in included_transaction_hashes:
-                new_transaction_pool.append(transaction)
-
-        self.transaction_pool = new_transaction_pool
 
         # write new ledger to config file for later reuse
         with open(self.node_ledger_config_file_path, 'w+') as f:
