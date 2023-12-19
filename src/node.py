@@ -220,7 +220,12 @@ class Node():
     def handle_incoming_transaction(self, sender_name, transaction_dict, followed_route):
         print(f'{self.name} received transaction from {sender_name}, route {followed_route}: {transaction_dict}')
 
-        # check the validity of transaction (todo: assume valid for now)
+        # check the validity of transaction
+        sender_addr = transaction_dict['sender_addr']
+        amount = transaction_dict['amount']
+        if amount > self.calculate_UTXO(sender_addr):
+            print(f'Invalid transaction (balance is not sufficient): {transaction_dict}')
+            return
 
         # construct transaction object
         new_transaction = Transaction.create_from_transaction_dict(transaction_dict)
@@ -251,9 +256,7 @@ class Node():
     def handle_incoming_block(self, sender_name, block_dict, followed_route):
         print(f'{self.name} received block from {sender_name}, route: {followed_route}: {block_dict}')
 
-        # check the validity of block (todo: for now simply check if its previous hash matches the top block's hash)
-
-        # if valid construct block object
+        # if block is valid construct block object
         new_block = Block.create_from_block_dict(block_dict)
 
         if self.alternative_top != None:
@@ -309,20 +312,20 @@ class Node():
                 'ledger': self.ledger.to_list_of_dicts()
             }, f)
         
-    def calculate_UTXO(self):
+    def calculate_UTXO(self, address):
         balance = 0.0
         # iterate through entire blockchain
         for block in self.ledger.blocks:
             for transaction in block.transactions:
-                if transaction.receiver_addr == self.address:
+                if transaction.receiver_addr == address:
                     balance += transaction.amount
-                elif transaction.sender_addr == self.address:
+                elif transaction.sender_addr == address:
                     balance -= transaction.amount
         # iterate through transaction pool
         for transaction in self.transaction_pool:
-            if transaction.receiver_addr == self.address:
+            if transaction.receiver_addr == address:
                 balance += transaction.amount
-            elif transaction.sender_addr == self.address:
+            elif transaction.sender_addr == address:
                 balance -= transaction.amount
 
         return balance
@@ -338,7 +341,7 @@ class Node():
                 data = s.recv(1024)
                 message = pickle.loads(data)
                 if message['type'] == 'balance_request':
-                    balance = self.calculate_UTXO()
+                    balance = self.calculate_UTXO(self.address)
                     s.send(pickle.dumps(balance))
                 else:
                     self.handle_incoming_transaction(
