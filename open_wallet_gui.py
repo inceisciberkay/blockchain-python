@@ -79,7 +79,8 @@ class WalletWindow(QMainWindow):
             assert(self.recipient_address is not None)
             assert(self.amount is not None)
             amount = float(self.amount)
-            self.wallet.create_transaction(self.recipient_address, amount)
+            new_balance = self.wallet.create_transaction(self.recipient_address, amount)
+            self.balanceTextField.setText(str(new_balance))
             self.reset_fields()
 
         except AssertionError:

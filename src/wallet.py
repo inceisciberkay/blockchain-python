@@ -2,6 +2,7 @@ import os
 import toml
 import socket
 import pickle
+import time
 from src.definitions import WALLET_PORT
 
 class Wallet():
@@ -20,11 +21,18 @@ class Wallet():
         else:
             raise Exception
 
-    def calculate_UTXO(self):
-        pass
-
     def get_balance(self):
-        return 1243124
+        wallet_addr = (self.ip_address, WALLET_PORT)
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as wallet_socket:
+            wallet_socket.connect(wallet_addr)
+            # send balance request to node
+            msg = {
+                'type': 'balance_request',
+            }
+            wallet_socket.send(pickle.dumps(msg))
+            data = wallet_socket.recv(1024)
+            balance = pickle.loads(data)
+        return balance
 
     def get_address(self):
         return self.address
@@ -36,8 +44,12 @@ class Wallet():
             # send transaction to the node holding the wallet
             # transaction will be propagated through its node
             msg = {
+                'type': 'create_transaction',
                 'sender_addr': self.address,
                 'receiver_addr': receiver_addr,
                 'amount': amount
             }
             wallet_socket.send(pickle.dumps(msg))
+        
+        time.sleep(0.01)
+        return self.get_balance()

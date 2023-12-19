@@ -309,6 +309,23 @@ class Node():
                 'ledger': self.ledger.to_list_of_dicts()
             }, f)
         
+    def calculate_UTXO(self):
+        balance = 0.0
+        # iterate through entire blockchain
+        for block in self.ledger.blocks:
+            for transaction in block.transactions:
+                if transaction.receiver_addr == self.address:
+                    balance += transaction.amount
+                elif transaction.sender_addr == self.address:
+                    balance -= transaction.amount
+        # iterate through transaction pool
+        for transaction in self.transaction_pool:
+            if transaction.receiver_addr == self.address:
+                balance += transaction.amount
+            elif transaction.sender_addr == self.address:
+                balance -= transaction.amount
+
+        return balance
 
     def listen_wallet(self):
         wallet_addr = (self.ip_address, WALLET_PORT)
@@ -319,12 +336,20 @@ class Node():
             while True:
                 s, _ = wallet_socket.accept()
                 data = s.recv(1024)
-                transaction_dict = pickle.loads(data)
-                self.handle_incoming_transaction(
-                    self.name,
-                    transaction_dict,
-                    [self.name]
-                )
+                message = pickle.loads(data)
+                if message['type'] == 'balance_request':
+                    balance = self.calculate_UTXO()
+                    s.send(pickle.dumps(balance))
+                else:
+                    self.handle_incoming_transaction(
+                        self.name,
+                        {
+                            'sender_addr': message['sender_addr'],
+                            'receiver_addr': message['receiver_addr'],
+                            'amount': message['amount']
+                        },
+                        [self.name]
+                    )
 
     def listen_neighbors(self):
         # neighbors can send transactions or blocks
