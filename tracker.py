@@ -13,8 +13,9 @@ class Tracker:
     # TODO: below is terrible
     def update_neighbors(self):
         for node_name, socket in self.up_and_running_nodes.items():
-            neighbors = [name for name, _ in self.up_and_running_nodes.items() if name != node_name and random.randint(0,1) == 1]
-            if len(neighbors) == 0: # give at least one neighbor
+            neighbors = [name for name, _ in self.up_and_running_nodes.items() if name != node_name and random.randint(0,1) == 1] # N/2 nodes
+            if len(neighbors) == 0:
+                # give all of the active nodes as neighbors (since randomization yielded 0 neighbors, it is likely that there are very few nodes)
                 neighbors = [name for name, _ in self.up_and_running_nodes.items() if name != node_name]
             socket.send(str(neighbors).encode('utf-8'))
 

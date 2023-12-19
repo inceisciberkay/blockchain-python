@@ -17,15 +17,21 @@ class Blockchain():
     def get_top(self):
         return self.blocks[-1]
 
+    def get_second_top(self):
+        return self.blocks[-2]
+
     def get_length(self):
         return len(self.blocks)
 
     def append_block(self, block):
         self.blocks.append(block)
+
+    def remove_top_block(self):
+        self.blocks.pop()
     
     def is_valid_proof(self, block):
         difficulty_prefix = '0' * self.difficulty
-        return block.hash().startswith(difficulty_prefix)
+        return block.hash().startswith(difficulty_prefix) and block.nonce > 10 ** self.difficulty
 
     @classmethod
     def create_from_list_of_block_dicts(cls, list_of_dicts):

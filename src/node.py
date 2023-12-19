@@ -81,7 +81,7 @@ class Node():
         # read address from wallet config which will be used for mining transactions
         self.address = toml.load(self.node_wallet_config_file_path)['wallet']['address']
         
-        self.orphan_blocks = set()
+        self.alternative_top = None
         self.transaction_pool = []
 
         self.synchronize_ledger()
@@ -171,6 +171,7 @@ class Node():
 
             if not self.lost_round:
                 # won the round, append the block and multicast to neighbors
+                print(f'Mined the block: {new_block.to_dict()}')
                 self.ledger.append_block(new_block)
                 for neighbor_name in self.neighbors:
                     send_addr = (self.ip_address, NODE_SEND_MINED_BLOCK_PORT)
@@ -178,7 +179,7 @@ class Node():
                     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as send_sock:
                         send_sock.bind(send_addr)
                         # Construct block message
-                        message = {'type': 'block', 'data': new_block.to_dict()}
+                        message = {'type': 'block', 'data': new_block.to_dict(), 'followed_route': [self.name]}
                         send_sock.sendto(pickle.dumps(message), neighbor_addr)
             
                 # Write the updated ledger to the config file for later reuse
@@ -190,15 +191,6 @@ class Node():
                 # remove included transactions from the transaction pool
                 self.update_transaction_pool(included_transactions)
     
-    def update_transaction_pool(self, included_transactions):
-        included_transaction_hashes = [transaction.hash() for transaction in included_transactions]
-        new_transaction_pool = []
-        for transaction in self.transaction_pool:
-            if transaction.hash() not in included_transaction_hashes:
-                new_transaction_pool.append(transaction)
-
-        self.transaction_pool = new_transaction_pool
-
     def run(self):
         miner = threading.Thread(target=self.mine)
         seed_listener = threading.Thread(target=self.listen_seed)
@@ -216,8 +208,17 @@ class Node():
         for worker in self.workers:
             worker.join()
 
-    def handle_incoming_transaction(self, sender_name, transaction_dict):
-        print(f'{self.name} received transaction from {sender_name}: {transaction_dict}')
+    def update_transaction_pool(self, included_transactions):
+        included_transaction_hashes = [transaction.hash() for transaction in included_transactions]
+        new_transaction_pool = []
+        for transaction in self.transaction_pool:
+            if transaction.hash() not in included_transaction_hashes:
+                new_transaction_pool.append(transaction)
+
+        self.transaction_pool = new_transaction_pool
+
+    def handle_incoming_transaction(self, sender_name, transaction_dict, followed_route):
+        print(f'{self.name} received transaction from {sender_name}, route {followed_route}: {transaction_dict}')
 
         # check the validity of transaction (todo: assume valid for now)
 
@@ -234,46 +235,72 @@ class Node():
 
         # propagate it through the network (by passing to neighbors)
         for neighbor_name in self.neighbors:
-            if neighbor_name == sender_name: continue   # do not forward message to sender
+            if neighbor_name in followed_route: continue   # do not forward message to if already received
             send_addr = (self.ip_address, NODE_SEND_TRANSACTION_PORT)
             neighbor_addr = (f"192.168.100.{int(neighbor_name[4:])}", NODE_RECV_PORT)
             with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as send_sock:
                 send_sock.bind(send_addr)
                 # construct transaction message
-                message = {'type': 'transaction', 'data': new_transaction.to_dict()}
+                message = {
+                    'type': 'transaction',
+                    'data': new_transaction.to_dict(),
+                    'followed_route': [*followed_route, self.name]
+                }
                 send_sock.sendto(pickle.dumps(message), neighbor_addr)
-
     
-    def handle_incoming_block(self, sender_name, block_dict):
-        print(f'{self.name} received block from {sender_name}: {block_dict}')
+    def handle_incoming_block(self, sender_name, block_dict, followed_route):
+        print(f'{self.name} received block from {sender_name}, route: {followed_route}: {block_dict}')
 
         # check the validity of block (todo: for now simply check if its previous hash matches the top block's hash)
-        if block_dict['previous_hash'] != self.ledger.get_top().hash():
-            self.orphan_blocks.add(Block.create_from_block_dict(block_dict))
-            return
 
-        # construct block object
+        # if valid construct block object
         new_block = Block.create_from_block_dict(block_dict)
 
-        # add block to the local ledger
-        # for now no need to check if the block is already received since in that case received block would be on top
-        self.ledger.append_block(new_block)
+        if self.alternative_top != None:
+            if new_block.hash() == self.alternative_top.hash():
+                return  # already handled
+            elif new_block.previous_hash == self.alternative_top.hash():    # new block is on top of the fork
+                # restructure ledger
+                self.ledger.remove_top_block()
+                self.ledger.append_block(self.alternative_top)
+                self.update_transaction_pool(self.alternative_top.transactions)
+                self.alternative_top = None
+            
+        if new_block.hash() == self.ledger.get_top().hash():
+            return  # already handled
+        elif new_block.previous_hash == self.ledger.get_top().hash():
+            if self.alternative_top != None:
+                print(f'Fork is discarded {self.alternative_top.to_dict()}')
+                self.alternative_top = None     # fork loses battle
 
-        # refine transaction pool based on incoming block: remove included transactions from the transaction pool
-        self.update_transaction_pool(new_block.transactions)
+            # add block to the local ledger
+            # for now no need to check if the block is already received since in that case received block would be on top
+            self.ledger.append_block(new_block)
 
-        # if block is valid, signal to stop mining
-        self.lost_round = True  # python assignments are atomic
+            # refine transaction pool based on incoming block: remove included transactions from the transaction pool
+            self.update_transaction_pool(new_block.transactions)
+
+            # if block is valid, signal to stop mining
+            self.lost_round = True  # python assignments are atomic
+        elif new_block.previous_hash == self.ledger.get_second_top().hash():
+            print(f'Fork block is received: {new_block.to_dict()}')
+            self.alternative_top = new_block
+        else:
+            return  # prevent attack
 
         # propagate block through network by passing to neighbors
         for neighbor_name in self.neighbors:
-            if neighbor_name == sender_name: continue   # do not forward message to sender
+            if neighbor_name in followed_route: continue   # do not forward message if already received
             send_addr = (self.ip_address, NODE_PROPAGATE_BLOCK_PORT)
             neighbor_addr = (f"192.168.100.{int(neighbor_name[4:])}", NODE_RECV_PORT)
             with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as send_sock:
                 send_sock.bind(send_addr)
                 # construct block message
-                message = {'type': 'block', 'data': new_block.to_dict()}
+                message = {
+                    'type': 'block',
+                    'data': new_block.to_dict(),
+                    'followed_route': [*followed_route, self.name]
+                }
                 send_sock.sendto(pickle.dumps(message), neighbor_addr)
 
         # write new ledger to config file for later reuse
@@ -295,7 +322,8 @@ class Node():
                 transaction_dict = pickle.loads(data)
                 self.handle_incoming_transaction(
                     self.name,
-                    transaction_dict
+                    transaction_dict,
+                    [self.name]
                 )
 
     def listen_neighbors(self):
@@ -314,10 +342,10 @@ class Node():
                     message = pickle.loads(data)
                     if message['type'] == 'transaction':
                         # assume the message format is correct
-                        self.handle_incoming_transaction(sender_name, message['data'])
+                        self.handle_incoming_transaction(sender_name, message['data'], message['followed_route'])
                     elif message['type'] == 'block':
                         # assume the message format is correct
-                        self.handle_incoming_block(sender_name, message['data'])
+                        self.handle_incoming_block(sender_name, message['data'], message['followed_route'])
                     else:
                         print(f'Unsupported message type: {message["type"]}')
 
