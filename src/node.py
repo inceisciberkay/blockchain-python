@@ -256,6 +256,17 @@ class Node():
     def handle_incoming_block(self, sender_name, block_dict, followed_route):
         print(f'{self.name} received block from {sender_name}, route: {followed_route}: {block_dict}')
 
+        # check if the transactions in the block are valid
+        for transaction_dict in block_dict['transactions']:
+            sender_addr = transaction_dict['sender_addr']
+            amount = transaction_dict['amount']
+            if sender_addr == 'mine':
+                continue
+
+            if amount > self.calculate_UTXO(sender_addr):
+                print(f'Received block has invalid transaction (balance is not sufficient): {transaction_dict}')
+                return
+
         # if block is valid construct block object
         new_block = Block.create_from_block_dict(block_dict)
 
@@ -264,6 +275,7 @@ class Node():
                 return  # already handled
             elif new_block.previous_hash == self.alternative_top.hash():    # new block is on top of the fork
                 # restructure ledger
+                print(f'Fork block is chosen to be at the top: {self.alternative_top.to_dict()}')
                 self.ledger.remove_top_block()
                 self.ledger.append_block(self.alternative_top)
                 self.update_transaction_pool(self.alternative_top.transactions)
